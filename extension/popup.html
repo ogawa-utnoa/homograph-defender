@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>Homograph Defender</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="top">
+      <img src="icons/icon32.png" width="20" height="20" alt="" />
+      <h1>Homograph Defender</h1>
+      <span class="local">端末内で判定・外部送信なし</span>
+    </header>
+
+    <main id="current" aria-live="polite">
+      <p class="loading">現在のタブを調べています…</p>
+    </main>
+
+    <section class="manual">
+      <h2>URL・ドメインを貼り付けて検査</h2>
+      <p class="hint">メールや SNS のリンクを開く前に、コピーして貼り付けると同じ方法で調べられます。見えない文字もそのまま検査します。</p>
+      <form id="manual-form" autocomplete="off">
+        <input id="manual-input" type="text" spellcheck="false" maxlength="2048" placeholder="例: https://xn--pypal-4ve.com/login" aria-label="検査する URL またはドメイン" />
+        <button type="submit">検査</button>
+      </form>
+      <div id="manual-result" aria-live="polite"></div>
+    </section>
+
+    <script src="punycode.js"></script>
+    <script src="detector.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

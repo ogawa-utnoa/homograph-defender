@@ -1,0 +1,14 @@
+{
+  "name": "homograph-defender",
+  "version": "1.1.1",
+  "private": true,
+  "description": "URL やメールのリンクに紛れ込んだ、英字そっくりの別の文字(ホモグラフ)や見えない文字を赤く警告する Chrome 拡張機能",
+  "license": "MIT",
+  "scripts": {
+    "test": "node tests/run.mjs",
+    "zip": "cd extension && zip -X -r ../homograph-defender.zip . -x '.*'"
+  },
+  "devDependencies": {
+    "playwright-core": "1.63.0"
+  }
+}
