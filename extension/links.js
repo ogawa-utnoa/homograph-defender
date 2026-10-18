@@ -17,9 +17,11 @@
   const LEVEL_ORDER = { safe: 0, warning: 1, danger: 2 };
   const maxLevel = (a, b) => (LEVEL_ORDER[a] >= LEVEL_ORDER[b] ? a : b);
 
-  // 転送用の URL(Gmail の google.com/url?q=… など)。中の本当の行き先を取り出す
+  // 転送用の URL(Gmail の google.com/url?q=… など)。中の本当の行き先を取り出す。
+  // Google の転送は決まったホストだけを認める(google.evil.com のような、だれでも作れる名前を Google の転送と取り違えないため)
+  const GOOGLE_REDIRECT_HOSTS = new Set(['google.com', 'www.google.com', 'google.co.jp', 'www.google.co.jp']);
   const WRAPPERS = [
-    { name: 'Google の転送', test: (u) => /^(www\.)?google\.[a-z.]+$/.test(u.hostname) && u.pathname === '/url', params: ['q', 'url'] },
+    { name: 'Google の転送', test: (u) => GOOGLE_REDIRECT_HOSTS.has(u.hostname) && u.pathname === '/url', params: ['q', 'url'] },
     { name: 'Outlook の安全リンク', test: (u) => /\.safelinks\.protection\.outlook\.com$/.test(u.hostname), params: ['url'] },
   ];
 
@@ -55,7 +57,7 @@
    * 文章(半角スペースを含む)・メールアドレス・ファイル名は対象外
    */
   function hostInText(text) {
-    const t = String(text == null ? '' : text).replace(/^[\t\n\r\f ]+|[\t\n\r\f ]+$/g, '');
+    const t = D.trimWs(text);
     if (!t || t.length > 300 || /[\t\n\r\f ]/.test(t)) return null;
     const parts = D.extractHost(t);
     if (parts.userinfo !== null && !/^[a-z][a-z0-9+.-]*:\/\//i.test(t)) return null; // info@example.com のようなメールアドレス

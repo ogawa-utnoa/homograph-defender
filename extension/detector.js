@@ -22,6 +22,20 @@
   };
   const has = (r, ch) => !!r && r.test(ch);
 
+  // 前後の空白(タブ・改行・スペース)を外す。正規表現の /[ws]+$/ は長い空白の並びで処理が入力の2乗に増えるので、端から1文字ずつ見る
+  const WS = new Set(['\t', '\n', '\r', '\f', ' ']);
+  function trimWs(text) {
+    const s = String(text == null ? '' : text);
+    let start = 0;
+    let end = s.length;
+    while (start < end && WS.has(s[start])) start++;
+    while (end > start && WS.has(s[end - 1])) end--;
+    return start === 0 && end === s.length ? s : s.slice(start, end);
+  }
+
+  // DNS のホスト名の長さの上限(末尾のドットを除く)。これより長いものは正しいドメイン名ではない
+  const MAX_HOST_LENGTH = 253;
+
   const RE = {
     bidi: re('^\\p{Bidi_Control}$'),
     variation: re('^\\p{Variation_Selector}$'),
@@ -402,7 +416,11 @@
   function analyzeHost(input, options) {
     const opts = options || {};
     const source = opts.source === 'manual' ? 'manual' : 'browser';
-    const host = String(input == null ? '' : input);
+    let host = String(input == null ? '' : input);
+    // 長すぎるホスト名(攻撃者が作れる)は、上限までだけ調べて「危険」にする(全部を1文字ずつ調べると処理が止まる)
+    const fullLength = host.replace(/\.$/, '').length;
+    const tooLong = fullLength > MAX_HOST_LENGTH;
+    if (tooLong) host = host.slice(0, MAX_HOST_LENGTH);
     const isIpLiteral = /^\[[0-9a-fA-F:.]+\]$/.test(host);
 
     const labels = host.split('.').map((raw, index) => {
@@ -444,6 +462,8 @@
 
     const unicode = labels.map((l) => l.unicode).join('.');
     const chars = [];
+    // ラベルごとの文字(ドットを除く)。1回の通しで振り分ける(ラベルごとに全体を探すと、ラベルの数×長さの処理になる)
+    const ownChars = labels.map(() => []);
     let labelIndex = 0;
     let position = 0;
     for (const ch of unicode) {
@@ -454,10 +474,11 @@
       position++;
       chars.push(info);
       if (ch === '.') labelIndex++;
+      else if (ownChars[labelIndex]) ownChars[labelIndex].push(info);
     }
 
     for (const label of labels) {
-      const own = chars.filter((c) => c.labelIndex === label.index && c.ch !== '.');
+      const own = ownChars[label.index] || [];
       for (const c of own) {
         let s = null;
         if (c.safe && /[a-z]/i.test(c.ch)) s = 'Latin';
@@ -499,6 +520,7 @@
     const ascii = labels.map((l) => l.ascii).join('.');
     const dangerChars = suspicious.filter((c) => DANGER_CATEGORIES.has(c.category));
     const danger =
+      tooLong ||
       invalidLabels.length > 0 ||
       roundTripNg.length > 0 ||
       browserMatch === false ||
@@ -515,6 +537,7 @@
     }
 
     const reasons = [];
+    if (tooLong) reasons.push('ホスト名が長すぎます(' + fullLength + ' 文字)。正しいドメイン名は ' + MAX_HOST_LENGTH + ' 文字までです。先頭の ' + MAX_HOST_LENGTH + ' 文字だけを調べました');
     if (lookalike && lookalike.strong) reasons.push('英字のドメイン「' + lookalike.text + '」に見せかけた偽のドメインの可能性があります');
     else {
       for (const l of lookalikeLabels.filter((x) => x.lookalike.strong)) {
@@ -548,6 +571,7 @@
       ascii,
       isPunycode,
       isIpLiteral,
+      tooLong,
       labels,
       chars,
       suspicious,
@@ -591,7 +615,7 @@
    * (URL に通すと見えない文字が消えてしまい、見落とすため)
    */
   function extractHost(text) {
-    let s = String(text == null ? '' : text).replace(/^[\t\n\r\f ]+|[\t\n\r\f ]+$/g, '');
+    let s = trimWs(text);
     if (s.length > 2048) s = s.slice(0, 2048);
     s = s.replace(/^[a-z][a-z0-9+.-]*:\/\//i, '').replace(/^\/\//, '');
     const end = s.search(/[/?#\\]/);
@@ -665,6 +689,7 @@
     analyzeUrl,
     analyzeInput,
     extractHost,
+    trimWs,
     classifyChar,
     lookalikeOf,
     categoryLabel,

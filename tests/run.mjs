@@ -222,6 +222,30 @@ const throwsCode = (fn) => {
   eq("リンク: mailto は対象外", lk("mailto:info@example.com", "info@example.com"), ["skip"]);
   eq("リンク: ファイル名(資料.pdf)はドメイン扱いしない", lk("https://example.com/a.pdf", "資料.pdf"), ["safe", "example.com", false]);
   eq("リンク: 文章(半角スペース入り)はドメイン扱いしない", lk("https://example.com/", "詳しくは example.com へ"), ["safe", "example.com", false]);
+
+  // ---- 点検(Claude Security 2026-10-17)で見つかった3件の回帰 ----
+  eq("リンク: google.evil.com/url?q= は Google の転送として外さない", [LK.analyzeLink("https://google.evil.com/url?q=https://www.paypal.com/signin", "www.paypal.com").via, lk("https://google.evil.com/url?q=https://www.paypal.com/signin", "www.paypal.com")], [[], ["warning", "google.evil.com", true]]);
+  eq("リンク: www.google.evil.com/url?q= も Google の転送として外さない", LK.analyzeLink("https://www.google.evil.com/url?q=https://www.paypal.com/", "link").url.hostname, "www.google.evil.com");
+  eq("リンク: google.co.jp/url?q= は Google の転送として外す", LK.analyzeLink("https://www.google.co.jp/url?q=https://example.com/", "link").via, ["Google の転送"]);
+  {
+    const spaces = "x" + " \n".repeat(50000) + "x";
+    const t0 = performance.now();
+    const r = LK.analyzeLink("http://1.2.3.4/", spaces);
+    const ms = performance.now() - t0;
+    ok("リンク: 長い空白の並びの表示の文字でも止まらない(200ms 未満)", ms < 200 && r.ok && r.textHost === null, `${Math.round(ms)}ms`);
+    eq("空白の除去: 前後のタブ・改行・スペースだけを外す", [D.trimWs("\t\n a b \r\f"), D.trimWs("   "), D.trimWs(""), D.trimWs(null)], ["a b", "", "", ""]);
+  }
+  {
+    const longHost = Array.from({ length: 200000 }, () => "a").join(".") + ".com";
+    const t0 = performance.now();
+    const r = D.analyzeUrl("http://" + longHost + "/");
+    const ms = performance.now() - t0;
+    ok("ホスト名: とても長いホスト名でも止まらず危険にする(500ms 未満)", ms < 500 && r && r.level === "danger" && r.tooLong === true && r.chars.length <= 253, `${Math.round(ms)}ms level=${r && r.level}`);
+    const normal = D.analyzeHost("example.com");
+    eq("ホスト名: ふつうの長さは今までどおり", [normal.level, normal.tooLong, normal.labels.length], ["safe", false, 2]);
+    const max = Array.from({ length: 63 }, () => "a").join("") + "." + Array.from({ length: 63 }, () => "b").join("") + "." + Array.from({ length: 63 }, () => "c").join("") + "." + Array.from({ length: 57 }, () => "d").join("") + ".com";
+    eq("ホスト名: 253 文字ちょうどは長すぎに入れない", [max.length, D.analyzeHost(max).tooLong], [253, false]);
+  }
 }
 
 // ================= 2) 静的検査 =================

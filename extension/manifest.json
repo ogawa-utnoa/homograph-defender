@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Homograph Defender",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "ドメインにASCII以外の文字・Punycode(xn--)・見えない文字があると赤く警告。Gmailではメール内のリンクの本当の行き先も表示して検査します。判定は端末内だけ。",
   "minimum_chrome_version": "116",
   "icons": {

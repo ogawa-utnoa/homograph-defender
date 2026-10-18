@@ -48,8 +48,10 @@
 
   const cut = (s, n) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
 
+  // 表示に使うのは先頭の80文字ほどなので、長い文字(メールの送り主が書ける)は先に切ってから整える
+  const SHOWN_TEXT_MAX = 400;
   function shownText(info) {
-    const t = info.text.replace(/^[\t\n\r\f ]+|[\t\n\r\f ]+$/g, '').replace(/[\t\n\r\f ]+/g, ' ');
+    const t = D.trimWs(D.trimWs(info.text).slice(0, SHOWN_TEXT_MAX)).replace(/[\t\n\r\f ]+/g, ' ');
     return t ? D.visibleText(t) : '';
   }
 
@@ -250,7 +252,8 @@
     row.title = info.url.href;
     row.append(el('span', 'm', info.level === 'safe' ? '✓' : info.level === 'danger' ? '✕' : '!'));
     const main = el('div', 'main');
-    const label = info.image ? '(画像のリンク)' : shownText(info) ? '「' + cut(shownText(info), 60) + '」' : '(文字のないリンク)';
+    const shown = info.image ? '' : shownText(info);
+    const label = info.image ? '(画像のリンク)' : shown ? '「' + cut(shown, 60) + '」' : '(文字のないリンク)';
     main.append(el('div', 't', '表示: ' + label));
     const dest = el('div', 'd');
     dest.append(el('span', 'k', '行き先: '), urlView(info, 70));
@@ -286,7 +289,8 @@
     const box = el('div', 'card ' + info.level);
     box.append(el('div', 'ch', info.level === 'safe' ? '✓ 文字のなりすましはありません' : '⚠ ' + LEVEL_TEXT[info.level] + ': このリンクに気をつけてください'));
     const body = el('div', 'cb');
-    const label = info.image ? '(画像のリンク)' : shownText(info) ? '「' + cut(shownText(info), 80) + '」' : '(文字のないリンク)';
+    const shown = info.image ? '' : shownText(info);
+    const label = info.image ? '(画像のリンク)' : shown ? '「' + cut(shown, 80) + '」' : '(文字のないリンク)';
     body.append(el('div', 'lbl', '表示の文字'), el('div', 'txt', label));
     body.append(el('div', 'lbl', '本当の行き先'));
     const dest = el('div', 'dest');
